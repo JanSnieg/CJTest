@@ -24,3 +24,19 @@ void AHeavyObject::Tick(const float DeltaTime)
 
 }
 
+void AHeavyObject::Interact(const bool bIsInteracting)
+{
+	if (MeshComponent && InteractiveMaterial)
+	{
+		if (bIsInteracting)
+		{
+			InitialMaterial = MeshComponent->GetMaterial(0);
+			MeshComponent->SetMaterial(0, InteractiveMaterial);
+		}
+		else
+		{
+			MeshComponent->SetMaterial(0, InitialMaterial);
+		}
+	}
+}
+

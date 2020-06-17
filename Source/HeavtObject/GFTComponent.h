@@ -27,7 +27,7 @@ public:
 	UGFTComponent();
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	void AddObject(AHeavyObject* HeavyObject);
+	void Interact(AHeavyObject* HeavyObject);
 
 protected:
 	virtual void BeginPlay() override;
@@ -41,5 +41,8 @@ private:
 
 	FVector GetHorizontalForceToAdd(AHeavyObject* Object) const;
 	FVector GetVerticalForceDirection(AHeavyObject* Object) const;
+
+	float GetTotalMass();
+	float GetMass(AHeavyObject* Object) const;
 
 };

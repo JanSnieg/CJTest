@@ -1,5 +1,6 @@
 #include "GFTComponent.h"
 
+#include <FreeType2/FreeType2-2.10.0/include/freetype/config/ftstdlib.h>
 
 #include "DrawDebugHelpers.h"
 #include "HeavyObjectCharacter.h"
@@ -21,21 +22,24 @@ FVector UGFTComponent::GetVerticalForceToAdd(AHeavyObject* Object) const
 {
 	FHitResult HitResult;
 	const FVector StartLocation = Object->GetActorLocation();
-	const FVector EndLocation = StartLocation + Object->GetActorUpVector() * -1000;
+	const FVector EndLocation = StartLocation + Object->GetActorUpVector() * -INTMAX_MAX;
 	GetWorld()->LineTraceSingleByChannel(HitResult, StartLocation, EndLocation, ECC_Visibility);
 
-	FVector ForceToAdd = GetVerticalStableForce(Object);
+	const FVector StableForce = GetVerticalStableForce(Object);
+	const float Multiplier = HitResult.Distance / 100;
 
+	if (HitResult.Distance > VerticalRange.GetMax())
+	{
+		return StableForce * (1 - Multiplier);
+	}
+	if (HitResult.Distance == 0)
+	{
+		return StableForce * 1.2;
+	}
 	if (HitResult.Distance < VerticalRange.GetMin())
 	{
-		ForceToAdd *= 1.1;
+		return StableForce * (1 + Multiplier);
 	}
-	else if (HitResult.Distance > VerticalRange.GetMax())
-	{
-		ForceToAdd *= 0.9;
-	}
-	
-	return ForceToAdd;
 }
 
 FVector UGFTComponent::GetVerticalStableForce(AHeavyObject* Object) const
@@ -60,17 +64,16 @@ FVector UGFTComponent::GetHorizontalForceToAdd(AHeavyObject* Object) const
 		
 		const float Distance = FVector::Dist(CharacterLocation, ObjectLocation);
 
-		const FVector VerticalDirection = (CharacterLocation - ObjectLocation).GetSafeNormal2D(1) * Distance;
-
-		DrawDebugLine(GetWorld(), ObjectLocation, ObjectLocation + VerticalDirection, FColor::Blue, false, 2, 0, 2);
+		FVector VerticalDirection = (CharacterLocation - ObjectLocation) * Distance * 0.1;
+		VerticalDirection.Z = 0;
 		
 		if (Distance < HorizontalRange.GetMin())
 		{
-			return VerticalDirection;
-		}
-		if  (Distance > HorizontalRange.GetMax())
-		{
 			return -VerticalDirection;
+		}
+		else if  (Distance > HorizontalRange.GetMax())
+		{
+			return VerticalDirection;
 		}
 	}
 	return {};
@@ -87,28 +90,61 @@ FVector UGFTComponent::GetVerticalForceDirection(AHeavyObject* Object) const
 	return {};
 }
 
+float UGFTComponent::GetTotalMass()
+{
+	float Result = 0;
+	for (AHeavyObject* Object : CurrentHeavyObjects)
+	{
+		Result += GetMass(Object);
+	}
+	return Result;
+}
+
+float UGFTComponent::GetMass(AHeavyObject* Object) const
+{
+	if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Object->GetRootComponent()))
+	{
+		return PrimitiveComponent->GetMass();
+	}
+	return 0;
+}
+
 void UGFTComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	for (AHeavyObject* Object : CurrentHeavyObjects)
 	{
-		if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Object->GetRootComponent()))
+		if (Object)
 		{
-			PrimitiveComponent->AddForce(GetVerticalForceToAdd(Object));
-			PrimitiveComponent->AddForce(GetHorizontalForceToAdd(Object));
+			if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Object->GetRootComponent()))
+            {
+            	PrimitiveComponent->AddForce(GetVerticalForceToAdd(Object));
+            	PrimitiveComponent->AddForce(GetHorizontalForceToAdd(Object));
+            }
 		}
 	}
 }
 
-void UGFTComponent::AddObject(AHeavyObject* HeavyObject)
+void UGFTComponent::Interact(AHeavyObject* HeavyObject)
 {
-	if (CurrentHeavyObjects.Num() <= NumberOfLinks)
+	const int Index = CurrentHeavyObjects.Find(HeavyObject);
+	if (Index == INDEX_NONE)
 	{
-		CurrentHeavyObjects.AddUnique(HeavyObject);
+		const float MassToBe = GetTotalMass() + GetMass(HeavyObject);
+		if (CurrentHeavyObjects.Num() < NumberOfLinks && MassToBe <= MaxLift)
+		{
+			CurrentHeavyObjects.AddUnique(HeavyObject);
+			HeavyObject->Interact(true);
+		}
+		else if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(1, 5, FColor::Green,FString("Cannot carry anymore objects"));
+		}
 	}
-	else if (GEngine)
+	else
 	{
-		GEngine->AddOnScreenDebugMessage(0, 5, FColor::Green,FString("Reached max number of objects to carry"));
+		CurrentHeavyObjects.RemoveAt(Index);
+		HeavyObject->Interact(false);
 	}
 }

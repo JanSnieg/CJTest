@@ -16,6 +16,9 @@ public:
 	UStaticMeshComponent* MeshComponent;
 
 	UPROPERTY(EditDefaultsOnly)
+	UMaterialInterface* InteractiveMaterial;
+
+	UPROPERTY(EditDefaultsOnly)
 	float InteractionDistance = 300;
 	
 	AHeavyObject();
@@ -26,4 +29,9 @@ protected:
 public:	
 	virtual void Tick(float DeltaTime) override;
 
+	void Interact(bool bIsInteracting);
+
+private:
+	UPROPERTY()
+	UMaterialInterface* InitialMaterial;
 };

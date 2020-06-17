@@ -182,17 +182,17 @@ void AHeavyObjectCharacter::OnFire()
 	}
 
 	// try and play the sound if specified
-	if (FireSound != NULL)
+	if (FireSound != nullptr)
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
 	}
 
 	// try and play a firing animation if specified
-	if (FireAnimation != NULL)
+	if (FireAnimation != nullptr)
 	{
 		// Get the animation object for the arms mesh
 		UAnimInstance* AnimInstance = Mesh1P->GetAnimInstance();
-		if (AnimInstance != NULL)
+		if (AnimInstance != nullptr)
 		{
 			AnimInstance->Montage_Play(FireAnimation, 1.f);
 		}
@@ -267,15 +267,12 @@ void AHeavyObjectCharacter::Interact()
 	const FVector EndLocation = StartLocation + ForwardVector * LineTraceLength;
 	
 	GetWorld()->LineTraceSingleByChannel(HitResult, StartLocation, EndLocation,ECC_Visibility);
-	DrawDebugLine(GetWorld(), StartLocation, EndLocation, FColor::Red, false, 2, 0, 10);
 
 	if (AHeavyObject* HeavyObject = Cast<AHeavyObject>(HitResult.GetActor()))
 	{
 		if (HitResult.Distance <= HeavyObject->InteractionDistance)
 		{
-			Gft->AddObject(HeavyObject);
-			const FString DebugText = FString("Interacting with: " + HitResult.Actor->GetHumanReadableName());
-			GEngine->AddOnScreenDebugMessage(0, 2, FColor::Red, DebugText);
+			Gft->Interact(HeavyObject);
 		}
 	}
 }
