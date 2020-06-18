@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GFTComponent.h"
 #include "GameFramework/Character.h"
 #include "HeavyObjectCharacter.generated.h"
 
@@ -46,7 +45,8 @@ class AHeavyObjectCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UMotionControllerComponent* L_MotionController;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true")) UGFTComponent* Gft;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	class UGFTComponent* Gft;
 
 public:
 	AHeavyObjectCharacter();

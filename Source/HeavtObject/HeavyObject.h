@@ -12,6 +12,11 @@ class HEAVTOBJECT_API AHeavyObject : public AActor
 	GENERATED_BODY()
 	
 public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInteract, AHeavyObject*, InteractedObject);
+
+	UPROPERTY(BlueprintAssignable)
+	FInteract OnInteract;
+	
 	UPROPERTY(EditDefaultsOnly)
 	UStaticMeshComponent* MeshComponent;
 
@@ -34,4 +39,6 @@ public:
 private:
 	UPROPERTY()
 	UMaterialInterface* InitialMaterial;
+	UPROPERTY()
+	FCollisionResponseContainer ResponseContainer;
 };

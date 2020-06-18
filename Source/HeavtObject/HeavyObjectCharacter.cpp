@@ -1,8 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "HeavyObjectCharacter.h"
-
-
 #include "DrawDebugHelpers.h"
 #include "GFTComponent.h"
 #include "HeavtObjectProjectile.h"

@@ -2,7 +2,6 @@
 
 
 #include "HeavyObject.h"
-
 #include "Components/StaticMeshComponent.h"
 
 AHeavyObject::AHeavyObject()
@@ -31,12 +30,17 @@ void AHeavyObject::Interact(const bool bIsInteracting)
 		if (bIsInteracting)
 		{
 			InitialMaterial = MeshComponent->GetMaterial(0);
+			ResponseContainer = MeshComponent->GetCollisionResponseToChannels();
+			
 			MeshComponent->SetMaterial(0, InteractiveMaterial);
+			MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 		}
 		else
 		{
 			MeshComponent->SetMaterial(0, InitialMaterial);
+			MeshComponent->SetCollisionResponseToChannels(ResponseContainer);
 		}
+		OnInteract.Broadcast(this);
 	}
 }
 

@@ -18,11 +18,11 @@ void UGFTComponent::BeginPlay()
 	Super::BeginPlay();
 }
 
-FVector UGFTComponent::GetVerticalForceToAdd(AHeavyObject* Object) const
+FVector UGFTComponent::GetVerticalForceToAddByGround(AHeavyObject* Object) const
 {
 	FHitResult HitResult;
 	const FVector StartLocation = Object->GetActorLocation();
-	const FVector EndLocation = StartLocation + Object->GetActorUpVector() * -INTMAX_MAX;
+	const FVector EndLocation = StartLocation + Object->GetActorUpVector() * -FLT_MAX;
 	GetWorld()->LineTraceSingleByChannel(HitResult, StartLocation, EndLocation, ECC_Visibility);
 
 	const FVector StableForce = GetVerticalStableForce(Object);
@@ -40,6 +40,26 @@ FVector UGFTComponent::GetVerticalForceToAdd(AHeavyObject* Object) const
 	{
 		return StableForce * (1 + Multiplier);
 	}
+	return StableForce;
+}
+
+FVector UGFTComponent::GetVerticalForceToAddByPlayer(AHeavyObject* Object) const
+{
+	const FVector StableForce = GetVerticalStableForce(Object);
+	const float VerticalDistance = Object->GetActorLocation().Z - GetOwner()->GetActorLocation().Z;
+	const float Multiplier = VerticalDistance / VerticalRangeByPlayer.GetMax();
+
+	/*Distance > 0
+	 *	Should go up
+	 *Distance < 0
+	 *	Should go down
+	 *Distance == 0
+	 *	Should stay in place*/
+	if (VerticalDistance < VerticalRangeByPlayer.GetMin() || VerticalDistance > VerticalRangeByPlayer.GetMax())
+	{
+		return StableForce * (1 - Multiplier);
+	}
+	return StableForce;
 }
 
 FVector UGFTComponent::GetVerticalStableForce(AHeavyObject* Object) const
@@ -57,37 +77,23 @@ FVector UGFTComponent::GetVerticalStableForce(AHeavyObject* Object) const
 
 FVector UGFTComponent::GetHorizontalForceToAdd(AHeavyObject* Object) const
 {
-	if (AHeavyObjectCharacter* Character = Cast<AHeavyObjectCharacter>(GetOwner()))
-	{
-		const FVector CharacterLocation = Character->GetActorLocation();
-		const FVector ObjectLocation = Object->GetActorLocation();
-		
-		const float Distance = FVector::Dist(CharacterLocation, ObjectLocation);
+	const FVector CharacterLocation = GetOwner()->GetActorLocation();
+	const FVector ObjectLocation = Object->GetActorLocation();
+	
+	const float Distance = FVector::Dist(CharacterLocation, ObjectLocation);
 
-		FVector VerticalDirection = (CharacterLocation - ObjectLocation) * Distance * 0.1;
-		VerticalDirection.Z = 0;
-		
-		if (Distance < HorizontalRange.GetMin())
-		{
-			return -VerticalDirection;
-		}
-		else if  (Distance > HorizontalRange.GetMax())
-		{
-			return VerticalDirection;
-		}
-	}
-	return {};
-}
-
-FVector UGFTComponent::GetVerticalForceDirection(AHeavyObject* Object) const
-{
-	if (AHeavyObjectCharacter* Character = Cast<AHeavyObjectCharacter>(GetOwner()))
+	FVector VerticalDirection = (CharacterLocation - ObjectLocation) * GetMass(Object);
+	VerticalDirection.Z = 0;
+	
+	if (Distance < HorizontalRange.GetMin())
 	{
-		const FVector ObjectLocation = Object->GetActorLocation();
-		const FVector CharacterLocation = Character->GetActorLocation();
-		return (ObjectLocation - CharacterLocation).GetSafeNormal(1);
+		return -VerticalDirection;
 	}
-	return {};
+	if  (Distance > HorizontalRange.GetMax())
+	{
+		return VerticalDirection;
+	}
+	return FVector(0);
 }
 
 float UGFTComponent::GetTotalMass()
@@ -119,11 +125,27 @@ void UGFTComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 		{
 			if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Object->GetRootComponent()))
             {
-            	PrimitiveComponent->AddForce(GetVerticalForceToAdd(Object));
+            	PrimitiveComponent->AddForce(bUsePlayerAsComparison ? GetVerticalForceToAddByPlayer(Object) : GetVerticalForceToAddByGround(Object));
             	PrimitiveComponent->AddForce(GetHorizontalForceToAdd(Object));
+				PrimitiveComponent->SetAngularDamping(AngularDamping);
+				PrimitiveComponent->SetLinearDamping(LinearDamping);
             }
 		}
 	}
+}
+
+void UGFTComponent::Deactivation(AHeavyObject* HeavyObject, const int Index)
+{
+	CurrentHeavyObjects.RemoveAt(Index);
+	HeavyObject->Interact(false);
+	OnRemove.Broadcast(GetOwner(), HeavyObject);
+}
+
+void UGFTComponent::Activation(AHeavyObject* HeavyObject)
+{
+	CurrentHeavyObjects.AddUnique(HeavyObject);
+	HeavyObject->Interact(true);
+	OnAdd.Broadcast(GetOwner(), HeavyObject);
 }
 
 void UGFTComponent::Interact(AHeavyObject* HeavyObject)
@@ -131,20 +153,23 @@ void UGFTComponent::Interact(AHeavyObject* HeavyObject)
 	const int Index = CurrentHeavyObjects.Find(HeavyObject);
 	if (Index == INDEX_NONE)
 	{
-		const float MassToBe = GetTotalMass() + GetMass(HeavyObject);
-		if (CurrentHeavyObjects.Num() < NumberOfLinks && MassToBe <= MaxLift)
+		if (CurrentHeavyObjects.Num() > NumberOfLinks)
 		{
-			CurrentHeavyObjects.AddUnique(HeavyObject);
-			HeavyObject->Interact(true);
-		}
-		else if (GEngine)
-		{
+			OnFail.Broadcast(GetOwner(), HeavyObject, EFailureReason::Number);
 			GEngine->AddOnScreenDebugMessage(1, 5, FColor::Green,FString("Cannot carry anymore objects"));
+			return;
 		}
+		const float MassToBe = GetTotalMass() + GetMass(HeavyObject);
+		if (MassToBe > MaxLift)
+		{
+			OnFail.Broadcast(GetOwner(), HeavyObject, EFailureReason::OverWeight);
+			GEngine->AddOnScreenDebugMessage(1, 5, FColor::Green,FString("Cannot carry anymore weight"));
+			return;
+		}
+		Activation(HeavyObject);
 	}
 	else
 	{
-		CurrentHeavyObjects.RemoveAt(Index);
-		HeavyObject->Interact(false);
+		Deactivation(HeavyObject, Index);
 	}
 }
