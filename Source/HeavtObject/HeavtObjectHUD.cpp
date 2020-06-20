@@ -5,7 +5,9 @@
 #include "Engine/Texture2D.h"
 #include "TextureResource.h"
 #include "CanvasItem.h"
+#include "GFTUserWidget.h"
 #include "UObject/ConstructorHelpers.h"
+
 
 AHeavtObjectHUD::AHeavtObjectHUD()
 {
@@ -32,4 +34,19 @@ void AHeavtObjectHUD::DrawHUD()
 	FCanvasTileItem TileItem( CrosshairDrawPosition, CrosshairTex->Resource, FLinearColor::White);
 	TileItem.BlendMode = SE_BLEND_Translucent;
 	Canvas->DrawItem( TileItem );
+}
+
+void AHeavtObjectHUD::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (GFTWidgetClass && !GFTWidget)
+	{
+		GFTWidget = CreateWidget<UGFTUserWidget>(AActor::GetWorld(), GFTWidgetClass);
+
+		if (GFTWidget)
+		{
+			GFTWidget->AddToViewport(0);
+		}
+	}
 }

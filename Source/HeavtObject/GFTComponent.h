@@ -18,6 +18,9 @@ class HEAVTOBJECT_API UGFTComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FUpdate, UGFTComponent*, GFT);
+	FUpdate OnUpdated;
+	
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FInteract, AActor*, Owner, AHeavyObject*, Object);
 
 	UPROPERTY(BlueprintAssignable)
@@ -31,7 +34,7 @@ public:
 	FInteractFailure OnFail;
 	
 	UPROPERTY(EditDefaultsOnly)
-	float NumberOfLinks = 8;
+	int32 MaxLinks = 8;
 	UPROPERTY(EditDefaultsOnly)
 	//Max lift in kilograms
 	float MaxLift = 1000;
@@ -60,6 +63,9 @@ public:
 	void Activation(AHeavyObject* HeavyObject);
 
 	void Interact(AHeavyObject* HeavyObject);
+	float GetTotalMass();
+	float GetMass(AHeavyObject* Object) const;
+	int32 GetNumberOfLinks() const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -73,8 +79,4 @@ private:
 	FVector GetVerticalStableForce(AHeavyObject* Object) const;
 
 	FVector GetHorizontalForceToAdd(AHeavyObject* Object) const;
-
-	float GetTotalMass();
-	float GetMass(AHeavyObject* Object) const;
-
 };

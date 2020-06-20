@@ -1,7 +1,4 @@
 #include "GFTComponent.h"
-
-#include <FreeType2/FreeType2-2.10.0/include/freetype/config/ftstdlib.h>
-
 #include "DrawDebugHelpers.h"
 #include "HeavyObjectCharacter.h"
 #include "Components/PrimitiveComponent.h"
@@ -115,6 +112,11 @@ float UGFTComponent::GetMass(AHeavyObject* Object) const
 	return 0;
 }
 
+int32 UGFTComponent::GetNumberOfLinks() const
+{
+	return CurrentHeavyObjects.Num();	
+}
+
 void UGFTComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -139,6 +141,7 @@ void UGFTComponent::Deactivation(AHeavyObject* HeavyObject, const int Index)
 	CurrentHeavyObjects.RemoveAt(Index);
 	HeavyObject->Interact(false);
 	OnRemove.Broadcast(GetOwner(), HeavyObject);
+	OnUpdated.Broadcast(this);
 }
 
 void UGFTComponent::Activation(AHeavyObject* HeavyObject)
@@ -146,6 +149,7 @@ void UGFTComponent::Activation(AHeavyObject* HeavyObject)
 	CurrentHeavyObjects.AddUnique(HeavyObject);
 	HeavyObject->Interact(true);
 	OnAdd.Broadcast(GetOwner(), HeavyObject);
+	OnUpdated.Broadcast(this);
 }
 
 void UGFTComponent::Interact(AHeavyObject* HeavyObject)
@@ -153,7 +157,7 @@ void UGFTComponent::Interact(AHeavyObject* HeavyObject)
 	const int Index = CurrentHeavyObjects.Find(HeavyObject);
 	if (Index == INDEX_NONE)
 	{
-		if (CurrentHeavyObjects.Num() > NumberOfLinks)
+		if (CurrentHeavyObjects.Num() > MaxLinks)
 		{
 			OnFail.Broadcast(GetOwner(), HeavyObject, EFailureReason::Number);
 			GEngine->AddOnScreenDebugMessage(1, 5, FColor::Green,FString("Cannot carry anymore objects"));

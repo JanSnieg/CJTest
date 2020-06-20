@@ -3,6 +3,7 @@
 #pragma once 
 
 #include "CoreMinimal.h"
+#include "Blueprint/UserWidget.h"
 #include "GameFramework/HUD.h"
 #include "HeavtObjectHUD.generated.h"
 
@@ -12,14 +13,20 @@ class AHeavtObjectHUD : public AHUD
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(EditDefaultsOnly, Category="Widgets")
+    TSubclassOf<UUserWidget> GFTWidgetClass;
+	
 	AHeavtObjectHUD();
 
-	/** Primary draw call for the HUD */
 	virtual void DrawHUD() override;
+	virtual void BeginPlay() override;
 
 private:
 	/** Crosshair asset pointer */
 	class UTexture2D* CrosshairTex;
+
+	UPROPERTY()
+	class UGFTUserWidget* GFTWidget;
 
 };
 
